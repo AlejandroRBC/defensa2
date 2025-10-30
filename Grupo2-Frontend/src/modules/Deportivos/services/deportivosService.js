@@ -16,19 +16,25 @@ export const deportivosService = {
 
     async crearReserva(reservaData) {
         try {
-            // Mapear los nombres de campos para que coincidan con la BD
+            // Asegurar que la fecha esté en formato correcto
+            const fechaFormateada = reservaData.fecha ? 
+                reservaData.fecha.split('T')[0] : 
+                new Date().toISOString().split('T')[0];
+
             const datosReserva = {
-                cod_reserva: reservaData.codReserva,
                 ci_cliente: reservaData.idCliente,
                 ci_empleado: reservaData.idEmpleado,
                 cod_cancha: reservaData.codCancha,
+                tipo_superficie: reservaData.tipo_superficie,
                 cod_disciplina: reservaData.codDisciplina,
-                fecha: reservaData.fecha,
-                hora_inicio: reservaData.horaInicio,
-                hora_fin: reservaData.horaFin,
-                monto_total: reservaData.montoTotal,
-                estado_reserva: reservaData.estadoReserva
+                fecha: fechaFormateada,
+                hora_inicio: reservaData.horaInicio || '08:00',
+                hora_fin: reservaData.horaFin || '10:00',
+                monto_total: parseFloat(reservaData.montoTotal) || 100.00,
+                estado_reserva: reservaData.estadoReserva || 'CONFIRMADA'
             };
+            
+            console.log('Enviando reserva:', datosReserva);
             
             const response = await axios.post(`${API_URL}/deportivos/reservas`, datosReserva);
             return response.data;
@@ -51,13 +57,12 @@ export const deportivosService = {
 
     async crearEspacio(espacioData) {
         try {
-            // Mapear los nombres de campos para que coincidan con la BD
             const datosEspacio = {
-                cod_espacio: espacioData.codEspacio,
+                cod_espacio: parseInt(espacioData.codEspacio),
                 nombre: espacioData.nombre,
                 ubicacion: espacioData.ubicacion,
-                capacidad: espacioData.capacidad,
-                estado: espacioData.estado,
+                capacidad: espacioData.capacidad ? parseInt(espacioData.capacidad) : null,
+                estado: espacioData.estado || 'ACTIVO',
                 descripcion: espacioData.descripcion
             };
             
@@ -81,22 +86,18 @@ export const deportivosService = {
     },
 
     // Obtener canchas por espacio
-    // Método mejorado para obtener canchas por espacio
-async obtenerCanchasPorEspacio(codEspacio) {
-    try {
-        console.log('Buscando canchas para espacio:', codEspacio); // Debug
-        const response = await axios.get(`${API_URL}/deportivos/canchas/${codEspacio}`);
-        console.log('Canchas recibidas:', response.data); // Debug
-        return response.data;
-    } catch (error) {
-        console.error('Error al obtener canchas:', error);
-        if (error.response) {
-            console.error('Respuesta del servidor:', error.response.data);
+    async obtenerCanchasPorEspacio(codEspacio) {
+        try {
+            console.log('Buscando canchas para espacio:', codEspacio);
+            const response = await axios.get(`${API_URL}/deportivos/canchas/${codEspacio}`);
+            console.log('Canchas recibidas:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Error al obtener canchas:', error);
+            // Devolver array vacío en caso de error
+            return [];
         }
-        // Devolver array vacío en caso de error
-        return [];
-    }
-},
+    },
 
     // Obtener disciplinas por cancha
     async obtenerDisciplinasPorCancha(codCancha) {
@@ -105,9 +106,11 @@ async obtenerCanchasPorEspacio(codEspacio) {
             return response.data;
         } catch (error) {
             console.error('Error al obtener disciplinas:', error);
-            throw error;
+            // Devolver array vacío en caso de error
+            return [];
         }
     },
+
     async obtenerReservaPorCodigo(codReserva) {
         try {
             const response = await axios.get(`${API_URL}/deportivos/reservas/${codReserva}`);
@@ -121,5 +124,4 @@ async obtenerCanchasPorEspacio(codEspacio) {
             throw error;
         }
     },
-
 };

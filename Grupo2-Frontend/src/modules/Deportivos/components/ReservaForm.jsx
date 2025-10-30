@@ -7,56 +7,25 @@ function ReservaForm() {
         idEmpleado: '',
         codEspacio: '',
         codCancha: '',
+        tipoSuperficie: '',
         codDisciplina: '',
         fecha: new Date().toISOString().split('T')[0],
         horaInicio: '08:00',
         horaFin: '10:00',
         montoTotal: '100.00',
-        estadoReserva: 'CONFIRMADA'
+        estadoReserva: 'CONFIRMADA',
+        numeroJugadores: '0'
     });
 
-    const [datosFormulario, setDatosFormulario] = useState({
-        clientes: [],
-        empleados: [],
-        espacios: [],
-        canchas: [], // Todas las canchas cargadas inicialmente
-        disciplinas: []
-    });
-    const [canchasFiltradas, setCanchasFiltradas] = useState([]); // Canchas filtradas por espacio
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
     const [buscandoReserva, setBuscandoReserva] = useState(false);
-    const [reservaEncontrada, setReservaEncontrada] = useState(false);
+    const [reservaEncontrada, setReservaEncontrada] = useState(null);
     const [codigoBusqueda, setCodigoBusqueda] = useState('');
-    const [cargandoCanchas, setCargandoCanchas] = useState(false);
+    const [mostrarDetalleJugadores, setMostrarDetalleJugadores] = useState(false);
     
-    // Referencia para el timeout de búsqueda
     const timeoutRef = useRef(null);
-
-    useEffect(() => {
-        cargarDatosFormulario();
-    }, []);
-
-    // Filtrar canchas cuando se selecciona un espacio
-    useEffect(() => {
-        if (formData.codEspacio) {
-            filtrarCanchasPorEspacio(formData.codEspacio);
-        } else {
-            setCanchasFiltradas([]);
-            setFormData(prev => ({ ...prev, codCancha: '', codDisciplina: '' }));
-        }
-    }, [formData.codEspacio, datosFormulario.canchas]);
-
-    // Cargar disciplinas cuando se selecciona una cancha
-    useEffect(() => {
-        if (formData.codCancha) {
-            cargarDisciplinasPorCancha(formData.codCancha);
-        } else {
-            setDatosFormulario(prev => ({ ...prev, disciplinas: [] }));
-            setFormData(prev => ({ ...prev, codDisciplina: '' }));
-        }
-    }, [formData.codCancha]);
 
     // Función para buscar reserva automáticamente cuando se escribe el código
     useEffect(() => {
@@ -78,50 +47,12 @@ function ReservaForm() {
         };
     }, [codigoBusqueda, reservaEncontrada]);
 
-    const cargarDatosFormulario = async () => {
-        try {
-            console.log('Iniciando carga de datos del formulario...');
-            const datos = await deportivosService.obtenerDatosFormulario();
-            console.log('Datos recibidos:', datos);
-            setDatosFormulario(datos);
-            
-            // Mostrar información de depuración en consola
-            console.log('Espacios cargados:', datos.espacios);
-            console.log('Canchas cargadas:', datos.canchas);
-            
-        } catch (error) {
-            console.error('Error cargando datos del formulario:', error);
-            setError('Error al cargar los datos del sistema: ' + error.message);
-        }
-    };
-
-    const filtrarCanchasPorEspacio = (codEspacio) => {
-        console.log('Filtrando canchas para espacio:', codEspacio);
-        const canchasFiltradas = datosFormulario.canchas.filter(
-            cancha => cancha.cod_espacio === (codEspacio)
-        );
-        console.log('Canchas filtradas:', canchasFiltradas);
-        setCanchasFiltradas(canchasFiltradas);
-        
-        // Si no hay canchas para este espacio, mostrar advertencia
-        if (canchasFiltradas.length === 0) {
-            console.warn(`kjlkNo se encontraron canchas para el espacio ${codEspacio}`);
-        }
-    };
-
-    const cargarDisciplinasPorCancha = async (codCancha) => {
-        try {
-            console.log('Cargando disciplinas para cancha:', codCancha);
-            const disciplinas = await deportivosService.obtenerDisciplinasPorCancha(codCancha);
-            console.log('Disciplinas recibidas:', disciplinas);
-            setDatosFormulario(prev => ({ ...prev, disciplinas }));
-        } catch (error) {
-            console.error('Error cargando disciplinas:', error);
-            setError('Error al cargar las disciplinas de la cancha seleccionada');
-        }
-    };
-
     const buscarReservaPorCodigo = async (codigo) => {
+        if (!codigo || codigo.trim() === '') {
+            setReservaEncontrada(null);
+            return;
+        }
+
         setBuscandoReserva(true);
         try {
             const resultado = await deportivosService.obtenerReservaPorCodigo(codigo);
@@ -129,32 +60,38 @@ function ReservaForm() {
             if (resultado.encontrada && resultado.reserva) {
                 const reserva = resultado.reserva;
                 
+                console.log('Reserva encontrada:', reserva);
+                
                 // Autocompletar todos los campos con los datos de la reserva encontrada
-                setFormData(prev => ({
-                    ...prev,
+                setFormData({
                     idCliente: reserva.ci_cliente.toString(),
                     idEmpleado: reserva.ci_empleado.toString(),
                     codEspacio: reserva.cod_espacio.toString(),
                     codCancha: reserva.cod_cancha.toString(),
+                    tipoSuperficie: reserva.tipo_superficie,
                     codDisciplina: reserva.cod_disciplina.toString(),
                     fecha: reserva.fecha,
                     horaInicio: reserva.hora_inicio,
                     horaFin: reserva.hora_fin,
                     montoTotal: reserva.monto_total.toString(),
-                    estadoReserva: reserva.estado_reserva
-                }));
+                    estadoReserva: reserva.estado_reserva,
+                    numeroJugadores: reserva.numero_jugadores
+                });
 
-                setReservaEncontrada(true);
-                setSuccess(`✅ Reserva #${reserva.cod_reserva} encontrada: ${reserva.cliente_nombre} ${reserva.cliente_apellido} - ${reserva.espacio_nombre}`);
+                setReservaEncontrada(reserva);
+                setSuccess(`✅ Reserva #${reserva.cod_reserva} encontrada - ${reserva.numero_jugadores} jugadores registrados`);
+                setError('');
                 
             } else {
-                setReservaEncontrada(false);
-                if (success) setSuccess('');
+                setReservaEncontrada(null);
+                setSuccess('');
+                setError(resultado.error || 'Reserva no encontrada');
             }
         } catch (error) {
             console.error('Error buscando reserva:', error);
-            setReservaEncontrada(false);
-            if (success) setSuccess('');
+            setReservaEncontrada(null);
+            setSuccess('');
+            setError('Error al buscar la reserva');
         } finally {
             setBuscandoReserva(false);
         }
@@ -168,13 +105,21 @@ function ReservaForm() {
             setCodigoBusqueda(value);
             
             if (reservaEncontrada) {
-                setReservaEncontrada(false);
+                // Si ya hay una reserva encontrada y el usuario cambia el código, limpiar el formulario
+                setReservaEncontrada(null);
                 setSuccess('');
+                limpiarFormulario();
             }
         }
     };
 
     const handleChange = (e) => {
+        // Si hay una reserva encontrada, no permitir cambios en los campos
+        if (reservaEncontrada) {
+            setError('No puede modificar los datos de una reserva existente. Busque otra reserva o limpie el formulario.');
+            return;
+        }
+
         const { name, value } = e.target;
         
         setFormData(prev => ({
@@ -191,22 +136,31 @@ function ReservaForm() {
             idEmpleado: '',
             codEspacio: '',
             codCancha: '',
+            tipoSuperficie: '',
             codDisciplina: '',
             fecha: new Date().toISOString().split('T')[0],
             horaInicio: '08:00',
             horaFin: '10:00',
             montoTotal: '100.00',
-            estadoReserva: 'CONFIRMADA'
+            estadoReserva: 'CONFIRMADA',
+            numeroJugadores: '0'
         });
         setCodigoBusqueda('');
-        setReservaEncontrada(false);
+        setReservaEncontrada(null);
         setSuccess('');
         setError('');
-        setCanchasFiltradas([]);
+        setMostrarDetalleJugadores(false);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Si hay una reserva encontrada, no permitir crear nueva
+        if (reservaEncontrada) {
+            setError('No puede crear una nueva reserva mientras tiene una reserva existente cargada. Limpie el formulario primero.');
+            return;
+        }
+
         setLoading(true);
         
         // Validaciones básicas
@@ -217,7 +171,13 @@ function ReservaForm() {
         }
 
         try {
-            const resultado = await deportivosService.crearReserva(formData);
+            // Asegurar formato correcto de la fecha
+            const datosConFechaCorregida = {
+                ...formData,
+                fecha: formData.fecha.split('T')[0] // Asegurar formato yyyy-MM-dd
+            };
+
+            const resultado = await deportivosService.crearReserva(datosConFechaCorregida);
             setSuccess(`Reserva deportiva #${resultado.reserva.cod_reserva} creada exitosamente`);
             limpiarFormulario();
         } catch (error) {
@@ -226,6 +186,17 @@ function ReservaForm() {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Función para determinar si un campo debe estar deshabilitado
+    const isFieldDisabled = (fieldName) => {
+        return reservaEncontrada !== null;
+    };
+
+    // Función para formatear hora
+    const formatearHora = (hora) => {
+        if (!hora) return 'No registrada';
+        return hora.substring(0, 5); // Mostrar solo HH:MM
     };
 
     return (
@@ -239,7 +210,7 @@ function ReservaForm() {
                 alignItems: 'center',
                 gap: '10px'
             }}>
-                🏟️ Formulario de Reserva - Sistema Deportivo
+                🏟️ Sistema de Reservas Deportivas
             </h2>
 
             {error && (
@@ -285,108 +256,181 @@ function ReservaForm() {
                         alignItems: 'center',
                         gap: '8px'
                     }}>
-                        📋 DATOS DE LA RESERVA
+                        🔍 BUSCAR RESERVA EXISTENTE
                     </h3>
                     
-                    {/* Sección de búsqueda de reserva existente */}
-                    <div style={{ 
-                        backgroundColor: reservaEncontrada ? '#e8f6f3' : '#fff9e6', 
-                        padding: '15px', 
-                        borderRadius: '6px', 
-                        marginBottom: '20px',
-                        border: `2px solid ${reservaEncontrada ? '#27ae60' : '#f39c12'}`
-                    }}>
-                        <h4 style={{ 
-                            color: reservaEncontrada ? '#27ae60' : '#e67e22',
-                            marginBottom: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            fontSize: '14px'
-                        }}>
-                            {reservaEncontrada ? '✅ RESERVA ENCONTRADA' : '🔍 BUSCAR RESERVA EXISTENTE'}
-                        </h4>
-                        
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px', alignItems: 'end' }}>
-                            <div>
-                                <label style={{ 
-                                    display: 'block', 
-                                    marginBottom: '8px', 
-                                    fontWeight: 'bold', 
-                                    color: '#2c3e50',
-                                    fontSize: '14px'
-                                }}>
-                                    Buscar por Número
-                                    {buscandoReserva && (
-                                        <span style={{ 
-                                            marginLeft: '10px', 
-                                            fontSize: '12px', 
-                                            color: '#3498db',
-                                            fontWeight: 'normal'
-                                        }}>
-                                            🔍 Buscando...
-                                        </span>
-                                    )}
-                                </label>
-                                <div style={{ position: 'relative' }}>
-                                    <input
-                                        type="text"
-                                        value={codigoBusqueda}
-                                        onChange={handleCodigoBusquedaChange}
-                                        style={{ 
-                                            width: '100%', 
-                                            padding: '10px', 
-                                            paddingRight: '40px',
-                                            borderRadius: '6px', 
-                                            border: `2px solid ${reservaEncontrada ? '#27ae60' : '#bdc3c7'}`,
-                                            fontSize: '14px',
-                                            backgroundColor: reservaEncontrada ? '#f0fff4' : 'white'
-                                        }}
-                                        placeholder="Ej: 1, 2, 3..."
-                                    />
-                                    {reservaEncontrada && (
-                                        <span style={{
-                                            position: 'absolute',
-                                            right: '10px',
-                                            top: '50%',
-                                            transform: 'translateY(-50%)',
-                                            color: '#27ae60',
-                                            fontSize: '16px'
-                                        }}>
-                                            ✅
-                                        </span>
-                                    )}
-                                </div>
-                                <small style={{ color: '#7f8c8d', fontSize: '12px', marginTop: '5px', display: 'block' }}>
-                                    {reservaEncontrada 
-                                        ? 'Reserva encontrada - Los campos se han autocompletado' 
-                                        : 'Ingrese un número de reserva para autocompletar los campos'
-                                    }
-                                </small>
-                            </div>
-
-                            <div>
-                                <button 
-                                    type="button"
-                                    onClick={() => buscarReservaPorCodigo(codigoBusqueda)}
-                                    disabled={!codigoBusqueda || buscandoReserva}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px', alignItems: 'end' }}>
+                        <div>
+                            <label style={{ 
+                                display: 'block', 
+                                marginBottom: '8px', 
+                                fontWeight: 'bold', 
+                                color: '#2c3e50',
+                                fontSize: '14px'
+                            }}>
+                                Número de Reserva
+                                {buscandoReserva && (
+                                    <span style={{ 
+                                        marginLeft: '10px', 
+                                        fontSize: '12px', 
+                                        color: '#3498db',
+                                        fontWeight: 'normal'
+                                    }}>
+                                        🔍 Buscando...
+                                    </span>
+                                )}
+                            </label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    value={codigoBusqueda}
+                                    onChange={handleCodigoBusquedaChange}
                                     style={{ 
-                                        width: '100%',
-                                        padding: '10px',
-                                        backgroundColor: (!codigoBusqueda || buscandoReserva) ? '#95a5a6' : '#3498db',
-                                        color: 'white',
-                                        border: 'none',
-                                        cursor: (!codigoBusqueda || buscandoReserva) ? 'not-allowed' : 'pointer',
-                                        borderRadius: '6px',
-                                        fontWeight: 'bold',
-                                        fontSize: '14px'
+                                        width: '100%', 
+                                        padding: '10px', 
+                                        paddingRight: '40px',
+                                        borderRadius: '6px', 
+                                        border: `2px solid ${reservaEncontrada ? '#27ae60' : '#bdc3c7'}`,
+                                        fontSize: '14px',
+                                        backgroundColor: reservaEncontrada ? '#f0fff4' : 'white'
                                     }}
-                                >
-                                    {buscandoReserva ? 'Buscando...' : 'Buscar Reserva'}
-                                </button>
+                                    placeholder="Ej: 1, 2, 3..."
+                                />
+                                {reservaEncontrada && (
+                                    <span style={{
+                                        position: 'absolute',
+                                        right: '10px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        color: '#27ae60',
+                                        fontSize: '16px'
+                                    }}>
+                                        ✅
+                                    </span>
+                                )}
                             </div>
+                            <small style={{ color: '#7f8c8d', fontSize: '12px', marginTop: '5px', display: 'block' }}>
+                                Ingrese el número de reserva para cargar los datos
+                            </small>
+                        </div>
+
+                        <div>
+                            <button 
+                                type="button"
+                                onClick={() => buscarReservaPorCodigo(codigoBusqueda)}
+                                disabled={!codigoBusqueda || buscandoReserva}
+                                style={{ 
+                                    width: '100%',
+                                    padding: '10px',
+                                    backgroundColor: (!codigoBusqueda || buscandoReserva) ? '#95a5a6' : '#3498db',
+                                    color: 'white',
+                                    border: 'none',
+                                    cursor: (!codigoBusqueda || buscandoReserva) ? 'not-allowed' : 'pointer',
+                                    borderRadius: '6px',
+                                    fontWeight: 'bold',
+                                    fontSize: '14px'
+                                }}
+                            >
+                                {buscandoReserva ? 'Buscando...' : 'Buscar Reserva'}
+                            </button>
                         </div>
                     </div>
+                </div>
+
+                <div style={{ 
+                    backgroundColor: '#f8f9fa', 
+                    padding: '25px', 
+                    borderRadius: '8px', 
+                    marginBottom: '25px',
+                    border: '2px solid #e74c3c',
+                    opacity: reservaEncontrada ? 0.7 : 1
+                }}>
+                    <h3 style={{ 
+                        color: '#2c3e50', 
+                        marginBottom: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}>
+                        📋 {reservaEncontrada ? 'INFORMACIÓN DE LA RESERVA' : 'NUEVA RESERVA'}
+                    </h3>
+
+                    {/* Información de la reserva encontrada */}
+                    {reservaEncontrada && (
+                        <div style={{
+                            marginBottom: '20px',
+                            padding: '15px',
+                            backgroundColor: '#e8f6f3',
+                            border: '2px solid #27ae60',
+                            borderRadius: '6px'
+                        }}>
+                            <h4 style={{ margin: '0 0 10px 0', color: '#27ae60' }}>
+                                Reserva #{reservaEncontrada.cod_reserva} - {reservaEncontrada.estado_reserva}
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '14px' }}>
+                                <div><strong>Cliente:</strong> {reservaEncontrada.cliente_nombre} {reservaEncontrada.cliente_apellido}</div>
+                                <div><strong>Empleado:</strong> {reservaEncontrada.empleado_nombre} {reservaEncontrada.empleado_apellido}</div>
+                                <div><strong>Espacio:</strong> {reservaEncontrada.espacio_nombre}</div>
+                                <div><strong>Cancha:</strong> #{reservaEncontrada.cod_cancha} - {reservaEncontrada.tipo_superficie}</div>
+                                <div><strong>Disciplina:</strong> {reservaEncontrada.disciplina_nombre}</div>
+                                <div><strong>Fecha:</strong> {reservaEncontrada.fecha}</div>
+                                <div><strong>Horario:</strong> {reservaEncontrada.hora_inicio} - {reservaEncontrada.hora_fin}</div>
+                                <div><strong>Monto:</strong> ${reservaEncontrada.monto_total}</div>
+                                <div><strong>Jugadores Registrados:</strong> 
+                                    <span style={{ 
+                                        fontWeight: 'bold', 
+                                        color: reservaEncontrada.numero_jugadores > 0 ? '#27ae60' : '#e74c3c',
+                                        marginLeft: '5px'
+                                    }}>
+                                        {reservaEncontrada.numero_jugadores}
+                                    </span>
+                                    {reservaEncontrada.numero_jugadores > 0 && (
+                                        <button 
+                                            type="button"
+                                            onClick={() => setMostrarDetalleJugadores(!mostrarDetalleJugadores)}
+                                            style={{
+                                                marginLeft: '10px',
+                                                padding: '2px 8px',
+                                                backgroundColor: '#3498db',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                fontSize: '10px',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {mostrarDetalleJugadores ? 'Ocultar' : 'Ver Detalle'}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Detalle de jugadores */}
+                            {mostrarDetalleJugadores && reservaEncontrada.jugadores && reservaEncontrada.jugadores.length > 0 && (
+                                <div style={{ 
+                                    marginTop: '15px', 
+                                    padding: '10px',
+                                    backgroundColor: '#d5f4e6',
+                                    borderRadius: '4px',
+                                    border: '1px solid #27ae60'
+                                }}>
+                                    <h5 style={{ margin: '0 0 8px 0', color: '#155724' }}>👥 Jugadores Registrados:</h5>
+                                    <div style={{ fontSize: '12px' }}>
+                                        {reservaEncontrada.jugadores.map((jugador, index) => (
+                                            <div key={index} style={{ 
+                                                padding: '5px 0',
+                                                borderBottom: index < reservaEncontrada.jugadores.length - 1 ? '1px solid #b8e0c9' : 'none'
+                                            }}>
+                                                <strong>{jugador.nombre} {jugador.apellido_p}</strong> (CI: {jugador.ci_cliente})<br />
+                                                Ingreso: {formatearHora(jugador.hora_ingreso)} | 
+                                                Salida: {formatearHora(jugador.hora_salida)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Fila 1: Fecha y Horarios */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
@@ -405,12 +449,14 @@ function ReservaForm() {
                                 name="fecha"
                                 value={formData.fecha}
                                 onChange={handleChange}
+                                disabled={isFieldDisabled('fecha')}
                                 style={{ 
                                     width: '100%', 
                                     padding: '10px', 
                                     borderRadius: '6px', 
                                     border: '2px solid #bdc3c7',
-                                    fontSize: '14px'
+                                    fontSize: '14px',
+                                    backgroundColor: isFieldDisabled('fecha') ? '#e9ecef' : 'white'
                                 }}
                             />
                         </div>
@@ -430,12 +476,14 @@ function ReservaForm() {
                                 name="horaInicio"
                                 value={formData.horaInicio}
                                 onChange={handleChange}
+                                disabled={isFieldDisabled('horaInicio')}
                                 style={{ 
                                     width: '100%', 
                                     padding: '10px', 
                                     borderRadius: '6px', 
                                     border: '2px solid #bdc3c7',
-                                    fontSize: '14px'
+                                    fontSize: '14px',
+                                    backgroundColor: isFieldDisabled('horaInicio') ? '#e9ecef' : 'white'
                                 }}
                             />
                         </div>
@@ -455,18 +503,20 @@ function ReservaForm() {
                                 name="horaFin"
                                 value={formData.horaFin}
                                 onChange={handleChange}
+                                disabled={isFieldDisabled('horaFin')}
                                 style={{ 
                                     width: '100%', 
                                     padding: '10px', 
                                     borderRadius: '6px', 
                                     border: '2px solid #bdc3c7',
-                                    fontSize: '14px'
+                                    fontSize: '14px',
+                                    backgroundColor: isFieldDisabled('horaFin') ? '#e9ecef' : 'white'
                                 }}
                             />
                         </div>
                     </div>
 
-                    {/* Fila 2: Cliente que reservó | Empleado que autorizó */}
+                    {/* Fila 2: IDs de Cliente y Empleado */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                         <div>
                             <label style={{ 
@@ -476,12 +526,14 @@ function ReservaForm() {
                                 color: '#2c3e50',
                                 fontSize: '14px'
                             }}>
-                                Cliente que reservó *
+                                CI Cliente *
                             </label>
-                            <select
+                            <input
+                                type="text"
                                 name="idCliente"
                                 value={formData.idCliente}
                                 onChange={handleChange}
+                                disabled={isFieldDisabled('idCliente')}
                                 required
                                 style={{ 
                                     width: '100%', 
@@ -489,16 +541,10 @@ function ReservaForm() {
                                     borderRadius: '6px', 
                                     border: '2px solid #bdc3c7',
                                     fontSize: '14px',
-                                    backgroundColor: 'white'
+                                    backgroundColor: isFieldDisabled('idCliente') ? '#e9ecef' : 'white'
                                 }}
-                            >
-                                <option value="">Seleccionar cliente</option>
-                                {datosFormulario.clientes.map(cliente => (
-                                    <option key={cliente.id} value={cliente.id}>
-                                        {cliente.nombre} {cliente.apellido_p} - CI: {cliente.id}
-                                    </option>
-                                ))}
-                            </select>
+                                placeholder="Ej: 1234567"
+                            />
                         </div>
 
                         <div>
@@ -509,12 +555,14 @@ function ReservaForm() {
                                 color: '#2c3e50',
                                 fontSize: '14px'
                             }}>
-                                Empleado que autorizó *
+                                CI Empleado *
                             </label>
-                            <select
+                            <input
+                                type="text"
                                 name="idEmpleado"
                                 value={formData.idEmpleado}
                                 onChange={handleChange}
+                                disabled={isFieldDisabled('idEmpleado')}
                                 required
                                 style={{ 
                                     width: '100%', 
@@ -522,20 +570,14 @@ function ReservaForm() {
                                     borderRadius: '6px', 
                                     border: '2px solid #bdc3c7',
                                     fontSize: '14px',
-                                    backgroundColor: 'white'
+                                    backgroundColor: isFieldDisabled('idEmpleado') ? '#e9ecef' : 'white'
                                 }}
-                            >
-                                <option value="">Seleccionar empleado</option>
-                                {datosFormulario.empleados.map(empleado => (
-                                    <option key={empleado.id} value={empleado.id}>
-                                        {empleado.nombre} {empleado.apellido_p} - CI: {empleado.id}
-                                    </option>
-                                ))}
-                            </select>
+                                placeholder="Ej: 1234567"
+                            />
                         </div>
                     </div>
 
-                    {/* Fila 3: Espacio Deportivo | Cancha */}
+                    {/* Fila 3: Códigos de Cancha y Tipo de Superficie */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                         <div>
                             <label style={{ 
@@ -545,85 +587,27 @@ function ReservaForm() {
                                 color: '#2c3e50',
                                 fontSize: '14px'
                             }}>
-                                Espacio Deportivo
+                                Código Cancha *
                             </label>
-                            <select
-                                name="codEspacio"
-                                value={formData.codEspacio}
-                                onChange={handleChange}
-                                style={{ 
-                                    width: '100%', 
-                                    padding: '10px', 
-                                    borderRadius: '6px', 
-                                    border: '2px solid #bdc3c7',
-                                    fontSize: '14px',
-                                    backgroundColor: 'white'
-                                }}
-                            >
-                                <option value="">Seleccionar espacio deportivo</option>
-                                {datosFormulario.espacios.map(espacio => (
-                                    <option key={espacio.cod_espacio} value={espacio.cod_espacio}>
-                                        {espacio.nombre}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label style={{ 
-                                display: 'block', 
-                                marginBottom: '8px', 
-                                fontWeight: 'bold', 
-                                color: '#2c3e50',
-                                fontSize: '14px'
-                            }}>
-                                Cancha *
-                                {formData.codEspacio && canchasFiltradas.length === 0 && (
-                                    <span style={{ 
-                                        marginLeft: '10px', 
-                                        fontSize: '12px', 
-                                        color: '#e74c3c',
-                                        fontWeight: 'normal'
-                                    }}>
-                                        ⚠️ No hay canchas
-                                    </span>
-                                )}
-                            </label>
-                            <select
+                            <input
+                                type="text"
                                 name="codCancha"
                                 value={formData.codCancha}
                                 onChange={handleChange}
+                                disabled={isFieldDisabled('codCancha')}
                                 required
-                                disabled={!formData.codEspacio || canchasFiltradas.length === 0}
                                 style={{ 
                                     width: '100%', 
                                     padding: '10px', 
                                     borderRadius: '6px', 
                                     border: '2px solid #bdc3c7',
                                     fontSize: '14px',
-                                    backgroundColor: 'white',
-                                    opacity: (formData.codEspacio && canchasFiltradas.length > 0) ? 1 : 0.6
+                                    backgroundColor: isFieldDisabled('codCancha') ? '#e9ecef' : 'white'
                                 }}
-                            >
-                                <option value="">
-                                    {!formData.codEspacio 
-                                        ? 'Primero seleccione un espacio' 
-                                        : canchasFiltradas.length === 0 
-                                            ? 'No hay canchas disponibles' 
-                                            : 'Seleccionar cancha'
-                                    }
-                                </option>
-                                {canchasFiltradas.map(cancha => (
-                                    <option key={cancha.cod_cancha} value={cancha.cod_cancha}>
-                                        Cancha {cancha.cod_cancha} - {cancha.tipo_superficie} {cancha.techado === 'SI' ? '(Techada)' : ''}
-                                    </option>
-                                ))}
-                            </select>
+                                placeholder="Ej: 1"
+                            />
                         </div>
-                    </div>
 
-                    {/* Fila 4: Disciplina | Monto Total */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                         <div>
                             <label style={{ 
                                 display: 'block', 
@@ -632,31 +616,56 @@ function ReservaForm() {
                                 color: '#2c3e50',
                                 fontSize: '14px'
                             }}>
-                                Disciplina *
+                                Tipo de Superficie
                             </label>
-                            <select
-                                name="codDisciplina"
-                                value={formData.codDisciplina}
+                            <input
+                                type="text"
+                                name="tipoSuperficie"
+                                value={formData.tipoSuperficie}
                                 onChange={handleChange}
-                                required
-                                disabled={!formData.codCancha}
+                                disabled={isFieldDisabled('tipoSuperficie')}
                                 style={{ 
                                     width: '100%', 
                                     padding: '10px', 
                                     borderRadius: '6px', 
                                     border: '2px solid #bdc3c7',
                                     fontSize: '14px',
-                                    backgroundColor: 'white',
-                                    opacity: formData.codCancha ? 1 : 0.6
+                                    backgroundColor: isFieldDisabled('tipoSuperficie') ? '#e9ecef' : 'white'
                                 }}
-                            >
-                                <option value="">{formData.codCancha ? 'Seleccionar disciplina' : 'Primero seleccione una cancha'}</option>
-                                {datosFormulario.disciplinas.map(disciplina => (
-                                    <option key={disciplina.cod_disciplina} value={disciplina.cod_disciplina}>
-                                        {disciplina.nombre}
-                                    </option>
-                                ))}
-                            </select>
+                                placeholder="Ej: Césped Natural"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Fila 4: Disciplina, Monto y Estado */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                        <div>
+                            <label style={{ 
+                                display: 'block', 
+                                marginBottom: '8px', 
+                                fontWeight: 'bold', 
+                                color: '#2c3e50',
+                                fontSize: '14px'
+                            }}>
+                                Código Disciplina *
+                            </label>
+                            <input
+                                type="text"
+                                name="codDisciplina"
+                                value={formData.codDisciplina}
+                                onChange={handleChange}
+                                disabled={isFieldDisabled('codDisciplina')}
+                                required
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '10px', 
+                                    borderRadius: '6px', 
+                                    border: '2px solid #bdc3c7',
+                                    fontSize: '14px',
+                                    backgroundColor: isFieldDisabled('codDisciplina') ? '#e9ecef' : 'white'
+                                }}
+                                placeholder="Ej: 1"
+                            />
                         </div>
 
                         <div>
@@ -674,6 +683,7 @@ function ReservaForm() {
                                 name="montoTotal"
                                 value={formData.montoTotal}
                                 onChange={handleChange}
+                                disabled={isFieldDisabled('montoTotal')}
                                 step="0.01"
                                 min="0"
                                 style={{ 
@@ -681,12 +691,76 @@ function ReservaForm() {
                                     padding: '10px', 
                                     borderRadius: '6px', 
                                     border: '2px solid #bdc3c7',
-                                    fontSize: '14px'
+                                    fontSize: '14px',
+                                    backgroundColor: isFieldDisabled('montoTotal') ? '#e9ecef' : 'white'
                                 }}
                                 placeholder="Ej: 100.00"
                             />
                         </div>
+
+                        <div>
+                            <label style={{ 
+                                display: 'block', 
+                                marginBottom: '8px', 
+                                fontWeight: 'bold', 
+                                color: '#2c3e50',
+                                fontSize: '14px'
+                            }}>
+                                Estado
+                            </label>
+                            <input
+                                type="text"
+                                name="estadoReserva"
+                                value={formData.estadoReserva}
+                                onChange={handleChange}
+                                disabled={isFieldDisabled('estadoReserva')}
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '10px', 
+                                    borderRadius: '6px', 
+                                    border: '2px solid #bdc3c7',
+                                    fontSize: '14px',
+                                    backgroundColor: isFieldDisabled('estadoReserva') ? '#e9ecef' : 'white'
+                                }}
+                                placeholder="Ej: CONFIRMADA"
+                            />
+                        </div>
                     </div>
+
+                    {/* Fila 5: Número de Jugadores (solo para nuevas reservas) */}
+                    {!reservaEncontrada && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ 
+                                display: 'block', 
+                                marginBottom: '8px', 
+                                fontWeight: 'bold', 
+                                color: '#2c3e50',
+                                fontSize: '14px'
+                            }}>
+                                Número de Jugadores Esperados
+                            </label>
+                            <input
+                                type="number"
+                                name="numeroJugadores"
+                                value={formData.numeroJugadores}
+                                onChange={handleChange}
+                                min="0"
+                                max="50"
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '10px', 
+                                    borderRadius: '6px', 
+                                    border: '2px solid #bdc3c7',
+                                    fontSize: '14px',
+                                    backgroundColor: 'white'
+                                }}
+                                placeholder="Ej: 10"
+                            />
+                            <small style={{ color: '#7f8c8d', fontSize: '12px', marginTop: '5px', display: 'block' }}>
+                                Número estimado de jugadores para esta reserva
+                            </small>
+                        </div>
+                    )}
                 </div>
 
                 {/* Botones de acción */}
@@ -705,46 +779,29 @@ function ReservaForm() {
                             fontSize: '14px'
                         }}
                     >
-                        🗑️ Limpiar
+                        🗑️ Limpiar Formulario
                     </button>
                     
-                    <button 
-                        type="submit"
-                        disabled={loading}
-                        style={{ 
-                            padding: '12px 25px', 
-                            backgroundColor: loading ? '#95a5a6' : '#3498db', 
-                            color: 'white', 
-                            border: 'none',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            borderRadius: '6px',
-                            fontWeight: 'bold',
-                            fontSize: '14px'
-                        }}
-                    >
-                        {loading ? '⏳ Creando...' : '💾 Crear Nueva Reserva'}
-                    </button>
+                    {!reservaEncontrada && (
+                        <button 
+                            type="submit"
+                            disabled={loading}
+                            style={{ 
+                                padding: '12px 25px', 
+                                backgroundColor: loading ? '#95a5a6' : '#3498db', 
+                                color: 'white', 
+                                border: 'none',
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                borderRadius: '6px',
+                                fontWeight: 'bold',
+                                fontSize: '14px'
+                            }}
+                        >
+                            {loading ? '⏳ Creando...' : '💾 Crear Nueva Reserva'}
+                        </button>
+                    )}
                 </div>
             </form>
-
-            {/* Información de depuración (solo en desarrollo) */}
-            {process.env.NODE_ENV === 'development' && (
-                <div style={{ 
-                    marginTop: '25px', 
-                    padding: '15px', 
-                    backgroundColor: '#2c3e50', 
-                    color: 'white',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontFamily: 'monospace'
-                }}>
-                    <h4 style={{ marginBottom: '10px', color: '#3498db' }}>🔧 Información de Depuración</h4>
-                    <div>Espacios cargados: {datosFormulario.espacios.length}</div>
-                    <div>Canchas totales: {datosFormulario.canchas.length}</div>
-                    <div>Canchas filtradas: {canchasFiltradas.length}</div>
-                    <div>Espacio seleccionado: {formData.codEspacio || 'Ninguno'}</div>
-                </div>
-            )}
         </div>
     );
 }

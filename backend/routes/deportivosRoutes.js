@@ -14,4 +14,9 @@ router.post("/espacios", deportivosController.crearEspacio);
 
 // Ruta para datos del formulario
 router.get("/datos-formulario", deportivosController.obtenerDatosFormulario);
+
+// Rutas adicionales para canchas y disciplinas
+router.get("/canchas/:cod_espacio", deportivosController.obtenerCanchasPorEspacio);
+router.get("/disciplinas/:cod_cancha", deportivosController.obtenerDisciplinasPorCancha);
+
 export default router;

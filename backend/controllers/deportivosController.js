@@ -38,6 +38,7 @@ export const deportivosController = {
 
     // Crear una nueva reserva deportiva
     // Modificar el método crearReserva para no recibir cod_reserva
+// Crear una nueva reserva deportiva - VERSIÓN SIMPLIFICADA
 async crearReserva(req, res) {
     const client = await pool.connect();
     try {
@@ -52,6 +53,8 @@ async crearReserva(req, res) {
             monto_total,
             estado_reserva
         } = req.body;
+
+        console.log('Datos recibidos para nueva reserva:', req.body);
 
         await client.query('BEGIN');
 
@@ -75,19 +78,39 @@ async crearReserva(req, res) {
             throw new Error('El empleado no existe');
         }
 
+        // Verificar que la cancha existe
+        const canchaExiste = await client.query(
+            'SELECT cod_cancha FROM CANCHA WHERE cod_cancha = $1',
+            [cod_cancha]
+        );
+
+        if (canchaExiste.rows.length === 0) {
+            throw new Error('La cancha no existe');
+        }
+
+        // Verificar que la disciplina existe
+        const disciplinaExiste = await client.query(
+            'SELECT cod_disciplina FROM DISCIPLINA WHERE cod_disciplina = $1',
+            [cod_disciplina]
+        );
+
+        if (disciplinaExiste.rows.length === 0) {
+            throw new Error('La disciplina no existe');
+        }
+
         // Insertar la nueva reserva (cod_reserva es autoincremental)
         const result = await client.query(`
             INSERT INTO RESERVA (
                 fecha, hora_inicio, hora_fin, estado_reserva, 
                 monto_total, ci_empleado, ci_cliente, cod_cancha, cod_disciplina
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING *
+            RETURNING cod_reserva, fecha, hora_inicio, hora_fin, estado_reserva, monto_total
         `, [
-            fecha || new Date().toISOString().split('T')[0],
-            hora_inicio || '08:00',
-            hora_fin || '10:00',
-            estado_reserva || 'CONFIRMADA',
-            monto_total || 100.00,
+            fecha,
+            hora_inicio,
+            hora_fin,
+            estado_reserva,
+            monto_total,
             ci_empleado,
             ci_cliente,
             cod_cancha,
@@ -95,6 +118,8 @@ async crearReserva(req, res) {
         ]);
 
         await client.query('COMMIT');
+        
+        console.log('Reserva creada exitosamente:', result.rows[0]);
         
         res.status(201).json({ 
             mensaje: "Reserva deportiva creada correctamente",
@@ -114,9 +139,13 @@ async crearReserva(req, res) {
 },
 
 // Modificar el método obtenerReservaPorCodigo para buscar por número
+
+// Obtener reserva por código - VERSIÓN MEJORADA CON CONTADOR DE JUGADORES
 async obtenerReservaPorCodigo(req, res) {
     try {
         const { cod_reserva } = req.params;
+        
+        console.log('Buscando reserva con código:', cod_reserva);
         
         // Validar que sea un número
         if (isNaN(cod_reserva)) {
@@ -142,10 +171,12 @@ async obtenerReservaPorCodigo(req, res) {
                 p_cliente.apellido_p as cliente_apellido,
                 p_empleado.nombre as empleado_nombre,
                 p_empleado.apellido_p as empleado_apellido,
-                c.cod_cancha,
                 c.cod_espacio,
+                c.tipo_superficie,
+                c.techado,
                 ed.nombre as espacio_nombre,
-                d.nombre as disciplina_nombre
+                d.nombre as disciplina_nombre,
+                COUNT(i.ci_cliente) as numero_jugadores
             FROM RESERVA r
             JOIN CLIENTE cl ON r.ci_cliente = cl.ci_cliente
             JOIN PERSONA p_cliente ON cl.ci_cliente = p_cliente.ci
@@ -154,8 +185,16 @@ async obtenerReservaPorCodigo(req, res) {
             JOIN CANCHA c ON r.cod_cancha = c.cod_cancha
             JOIN ESPACIO_DEPORTIVO ed ON c.cod_espacio = ed.cod_espacio
             JOIN DISCIPLINA d ON r.cod_disciplina = d.cod_disciplina
+            LEFT JOIN INGRESA i ON r.cod_reserva = i.cod_reserva
             WHERE r.cod_reserva = $1
+            GROUP BY 
+                r.cod_reserva, r.fecha, r.hora_inicio, r.hora_fin, r.estado_reserva, r.monto_total,
+                r.ci_cliente, r.ci_empleado, r.cod_cancha, r.cod_disciplina,
+                p_cliente.nombre, p_cliente.apellido_p, p_empleado.nombre, p_empleado.apellido_p,
+                c.cod_espacio, c.tipo_superficie, c.techado, ed.nombre, d.nombre
         `, [parseInt(cod_reserva)]);
+
+        console.log('Resultado de búsqueda ppp:', result.rows);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ 
@@ -164,9 +203,27 @@ async obtenerReservaPorCodigo(req, res) {
             });
         }
 
+        // Obtener detalles de los jugadores que ingresaron
+        const jugadoresResult = await pool.query(`
+            SELECT 
+                i.ci_cliente,
+                p.nombre,
+                p.apellido_p,
+                i.hora_ingreso,
+                i.hora_salida
+            FROM INGRESA i
+            JOIN PERSONA p ON i.ci_cliente = p.ci
+            WHERE i.cod_reserva = $1
+            ORDER BY i.hora_ingreso
+        `, [parseInt(cod_reserva)]);
+
+        const reserva = result.rows[0];
+        reserva.jugadores = jugadoresResult.rows;
+        reserva.numero_jugadores = parseInt(reserva.numero_jugadores);
+
         res.json({
             encontrada: true,
-            reserva: result.rows[0]
+            reserva: reserva
         });
 
     } catch (error) {
@@ -177,7 +234,6 @@ async obtenerReservaPorCodigo(req, res) {
         });
     }
 },
-
     // Obtener espacios deportivos con estadísticas
     async obtenerEspacios(req, res) {
         try {
@@ -284,23 +340,109 @@ async obtenerReservaPorCodigo(req, res) {
         }
     },
 
-    // Obtener canchas por espacio deportivo
-    async obtenerCanchasPorEspacio(req, res) {
-        try {
-            const { cod_espacio } = req.params;
-            const result = await pool.query(`
-                SELECT c.cod_cancha, c.tipo_superficie, c.techado
-                FROM CANCHA c
-                WHERE c.cod_espacio = $1
-                ORDER BY c.cod_cancha
-            `, [cod_espacio]);
+    // Método para obtener canchas por espacio deportivo
+async obtenerCanchasPorEspacio(req, res) {
+    try {
+        const { cod_espacio } = req.params;
+        
+        console.log('Buscando canchas para espacio:', cod_espacio); // Debug
+        
+        const result = await pool.query(`
+            SELECT 
+                c.cod_cancha, 
+                c.tipo_superficie, 
+                c.techado,
+                ed.nombre as espacio_nombre
+            FROM CANCHA c
+            JOIN ESPACIO_DEPORTIVO ed ON c.cod_espacio = ed.cod_espacio
+            WHERE c.cod_espacio = $1
+            ORDER BY c.cod_cancha
+        `, [cod_espacio]);
 
-            res.json(result.rows);
-        } catch (error) {
-            console.error("Error al obtener canchas:", error);
-            res.status(500).json({ error: "Error al obtener canchas" });
-        }
-    },
+        console.log('Canchas encontradas:', result.rows.length); // Debug
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error al obtener canchas:", error);
+        res.status(500).json({ 
+            error: "Error al obtener canchas",
+            detalle: error.message
+        });
+    }
+},
+
+// Método mejorado para obtener datos del formulario
+async obtenerDatosFormulario(req, res) {
+    try {
+        console.log('Cargando datos del formulario...'); // Debug
+        
+        const [clientes, empleados, espacios, disciplinas] = await Promise.all([
+            pool.query(`
+                SELECT p.ci as id, p.nombre, p.apellido_p, p.telefono 
+                FROM PERSONA p 
+                JOIN CLIENTE c ON p.ci = c.ci_cliente 
+                WHERE p.ci IS NOT NULL
+                ORDER BY p.nombre
+            `),
+            pool.query(`
+                SELECT p.ci as id, p.nombre, p.apellido_p, e.salario 
+                FROM PERSONA p 
+                JOIN EMPLEADO e ON p.ci = e.ci_empleado 
+                WHERE p.ci IS NOT NULL
+                ORDER BY p.nombre
+            `),
+            pool.query(`
+                SELECT cod_espacio, nombre 
+                FROM ESPACIO_DEPORTIVO 
+                WHERE cod_espacio IS NOT NULL
+                ORDER BY nombre
+            `),
+            pool.query(`
+                SELECT cod_disciplina, nombre 
+                FROM DISCIPLINA 
+                WHERE cod_disciplina IS NOT NULL
+                ORDER BY nombre
+            `)
+        ]);
+
+        // Para las canchas, obtenemos todas y las agrupamos por espacio
+        const todasCanchas = await pool.query(`
+            SELECT 
+                c.cod_cancha, 
+                c.tipo_superficie, 
+                c.techado,
+                c.cod_espacio,
+                ed.nombre as espacio_nombre
+            FROM CANCHA c
+            JOIN ESPACIO_DEPORTIVO ed ON c.cod_espacio = ed.cod_espacio
+            WHERE c.cod_cancha IS NOT NULL
+            ORDER BY c.cod_espacio, c.cod_cancha
+        `);
+
+        console.log('Datos cargados:', {
+            clientes: clientes.rows.length,
+            empleados: empleados.rows.length,
+            espacios: espacios.rows.length,
+            canchas: todasCanchas.rows.length,
+            disciplinas: disciplinas.rows.length
+        }); // Debug
+
+        res.json({
+            clientes: clientes.rows,
+            empleados: empleados.rows,
+            espacios: espacios.rows,
+            canchas: todasCanchas.rows, // Enviamos todas las canchas
+            disciplinas: disciplinas.rows
+        });
+
+    } catch (error) {
+        console.error("Error al obtener datos del formulario:", error);
+        res.status(500).json({ 
+            error: "Error al obtener datos del formulario",
+            detalle: error.message
+        });
+    }
+},
 
     // Obtener disciplinas por cancha
     async obtenerDisciplinasPorCancha(req, res) {
@@ -321,10 +463,21 @@ async obtenerReservaPorCodigo(req, res) {
         }
     },
     // Agregar este nuevo método al controlador
+// Obtener reserva por código - VERSIÓN CORREGIDA
 async obtenerReservaPorCodigo(req, res) {
     try {
         const { cod_reserva } = req.params;
         
+        console.log('Buscando reserva con código:', cod_reserva);
+        
+        // Validar que sea un número
+        if (isNaN(cod_reserva)) {
+            return res.status(400).json({ 
+                error: "El código de reserva debe ser un número",
+                encontrada: false
+            });
+        }
+
         const result = await pool.query(`
             SELECT 
                 r.cod_reserva,
@@ -341,7 +494,6 @@ async obtenerReservaPorCodigo(req, res) {
                 p_cliente.apellido_p as cliente_apellido,
                 p_empleado.nombre as empleado_nombre,
                 p_empleado.apellido_p as empleado_apellido,
-                c.cod_cancha,
                 c.cod_espacio,
                 ed.nombre as espacio_nombre,
                 d.nombre as disciplina_nombre
@@ -354,7 +506,9 @@ async obtenerReservaPorCodigo(req, res) {
             JOIN ESPACIO_DEPORTIVO ed ON c.cod_espacio = ed.cod_espacio
             JOIN DISCIPLINA d ON r.cod_disciplina = d.cod_disciplina
             WHERE r.cod_reserva = $1
-        `, [cod_reserva]);
+        `, [parseInt(cod_reserva)]);
+
+        console.log('Resultado de búsqueda:', result.rows);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ 
