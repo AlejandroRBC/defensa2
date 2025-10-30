@@ -1,0 +1,122 @@
+
+/* === TABLAS === */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  thead {
+    background-color: #0b2948;
+    color: white;
+  }
+  
+  th, td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e1e1e1;
+    text-align: left;
+  }
+
+* {
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    line-height: 1.6;
+  }
+  
+  
+  /* Botones mejorados */
+  button {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-eliminar {
+    margin-right: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13px;
+  }
+  
+  .btn-eliminar:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+  
+  .btnEditar {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #051c5e 0%, #0b6dee 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13px;
+  }
+  
+  .btnEditar:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+  }
+  
+  /* Estilos para formularios */
+  input, select, textarea {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: all 0.3s ease;
+  }
+  
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+  }
+
+  
+  /* Animaciones */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Aplicar animación al contenido */
+  div > * {
+    animation: fadeIn 0.5s ease;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav > div {
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .modulos-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    table {
+      font-size: 12px;
+    }
+    
+    th, td {
+      padding: 8px 10px;
+    }
+  }
