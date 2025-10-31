@@ -3,6 +3,13 @@ import axios from 'axios';
 const API_URL = 'http://localhost:4000';
 
 export const deportivosService = {
+    //buscar espacio
+    async buscarEspacio(cod_espacio) {
+    const res = await fetch(`${API_URL}/deportivos/buscar/${cod_espacio}`);
+    if (!res.ok) throw new Error("Error al buscar espacio");
+    return await res.json();
+    },
+
     // Reservas deportivas
     async obtenerReservas() {
         try {

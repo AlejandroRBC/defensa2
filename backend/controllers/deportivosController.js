@@ -234,6 +234,7 @@ async obtenerReservaPorCodigo(req, res) {
         });
     }
 },
+
     // Obtener espacios deportivos con estadísticas
     async obtenerEspacios(req, res) {
         try {
@@ -530,4 +531,38 @@ async obtenerReservaPorCodigo(req, res) {
         });
     }
 },
+
+
+
+  async obtenerDatosEspacio(req, res) {
+    try {
+      const { cod_espacio } = req.params;
+
+      const query = `
+        SELECT 
+          e.cod_espacio,
+          e.nombre,
+          COALESCE(COUNT(DISTINCT c.cod_cancha), 0) AS nro_canchas,
+          COALESCE(COUNT(DISTINCT r.cod_reserva), 0) AS nro_reservas,
+          COALESCE(SUM(p.monto), 0) AS total_pago
+        FROM espacio_deportivo e
+        LEFT JOIN cancha c ON e.cod_espacio = c.cod_espacio
+        LEFT JOIN reserva r ON c.cod_cancha = r.cod_cancha
+        LEFT JOIN pago p ON r.cod_reserva = p.cod_reserva
+        WHERE e.cod_espacio = $1
+        GROUP BY e.cod_espacio, e.nombre
+      `;
+
+      const result = await pool.query(query, [cod_espacio]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ mensaje: "Espacio no encontrado" });
+      }
+
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error("Error al obtener datos del espacio:", error);
+      res.status(500).json({ error: "Error en el servidor" });
+    }
+  },
 };

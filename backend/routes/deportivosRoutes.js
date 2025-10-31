@@ -19,4 +19,7 @@ router.get("/datos-formulario", deportivosController.obtenerDatosFormulario);
 router.get("/canchas/:cod_espacio", deportivosController.obtenerCanchasPorEspacio);
 router.get("/disciplinas/:cod_cancha", deportivosController.obtenerDisciplinasPorCancha);
 
+// Buscar espacio deportivo por código
+router.fetch("/buscar/:cod_espacio", deportivosController.obtenerDatosEspacio);
+
 export default router;

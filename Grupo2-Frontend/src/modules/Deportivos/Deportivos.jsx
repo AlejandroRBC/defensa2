@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ReservaForm from './components/ReservaForm';
 import EspaciosDeportivos from './components/EspaciosDeportivos';
+import BuscarEspacio from './components/BuscarEspacio';
 
 function Deportivos() {
     const [vistaActual, setVistaActual] = useState('reserva');
@@ -58,6 +59,22 @@ function Deportivos() {
                 >
                      Datos Espacios Deportivos
                 </button>
+                <button
+                    onClick={() => setVistaActual('buscar')}
+                    style={{
+                        padding: '12px 25px',
+                        backgroundColor: vistaActual === 'buscar' ? '#3498db' : '#95a5a6',
+                        color: 'white',
+                        border: 'none',
+                        cursor: 'pointer',
+                        borderRadius: '6px',
+                        fontWeight: 'bold',
+                        fontSize: '14px',
+                        transition: 'all 0.3s ease'
+                    }}
+                >
+                     Datos Espacios Deportivos - Busqueda
+                </button>
             </div>
 
             {/* Contenido de la vista actual */}
@@ -65,6 +82,8 @@ function Deportivos() {
                 {vistaActual === 'reserva' && <ReservaForm />}
                     
                 {vistaActual === 'espacios' && <EspaciosDeportivos />}
+
+                {vistaActual === 'buscar' && <BuscarEspacio />}
             </div>
         </div>
     );

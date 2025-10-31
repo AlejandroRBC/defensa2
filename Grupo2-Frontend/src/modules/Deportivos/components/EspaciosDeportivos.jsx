@@ -74,6 +74,79 @@ function EspaciosDeportivos() {
 
     return (
         <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '8px' }}>
+            {/* Lista de espacios registrados */}
+            {espacios.length > 0 && (
+                <div style={{ 
+                    marginTop: '30px', 
+                    padding: '20px', 
+                    backgroundColor: '#ecf0f1', 
+                    borderRadius: '8px',
+                    border: '1px solid #bdc3c7'
+                }}>
+                    <h4 style={{ 
+                        color: '#2c3e50', 
+                        marginBottom: '15px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}>
+                        📋 Espacios Deportivos Registrados
+                    </h4>
+                    <div style={{ 
+                        display: 'grid', 
+                        gap: '10px'
+                    }}>
+                        {espacios.map((espacio) => (
+                            <div 
+                                key={espacio.cod_espacio}
+                                style={{ 
+                                    padding: '15px',
+                                    backgroundColor: 'white',
+                                    borderRadius: '6px',
+                                    border: '1px solid #bdc3c7',
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 2fr 1fr 1fr 1fr',
+                                    gap: '15px',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>
+                                    {espacio.cod_espacio}
+                                </div>
+                                <div style={{ fontWeight: '600' }}>
+                                    {espacio.nombre}
+                                </div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <span style={{ 
+                                        backgroundColor: '#9b59b6', 
+                                        color: 'white', 
+                                        padding: '5px 10px', 
+                                        borderRadius: '15px',
+                                        fontSize: '12px'
+                                    }}>
+                                        {espacio.nro_canchas} canchas
+                                    </span>
+                                </div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <span style={{ 
+                                        backgroundColor: '#3498db', 
+                                        color: 'white', 
+                                        padding: '5px 10px', 
+                                        borderRadius: '15px',
+                                        fontSize: '12px'
+                                    }}>
+                                        {espacio.nro_reservas} reservas
+                                    </span>
+                                </div>
+                                <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#27ae60' }}>
+                                    ${parseFloat(espacio.total_pagos).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <h2 style={{ 
                 color: '#2c3e50', 
                 marginBottom: '25px', 
@@ -316,79 +389,6 @@ function EspaciosDeportivos() {
                     </button>
                 </div>
             </form>
-
-            {/* Lista de espacios registrados */}
-            {espacios.length > 0 && (
-                <div style={{ 
-                    marginTop: '30px', 
-                    padding: '20px', 
-                    backgroundColor: '#ecf0f1', 
-                    borderRadius: '8px',
-                    border: '1px solid #bdc3c7'
-                }}>
-                    <h4 style={{ 
-                        color: '#2c3e50', 
-                        marginBottom: '15px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }}>
-                        📋 Espacios Deportivos Registrados
-                    </h4>
-                    <div style={{ 
-                        display: 'grid', 
-                        gap: '10px'
-                    }}>
-                        {espacios.map((espacio) => (
-                            <div 
-                                key={espacio.cod_espacio}
-                                style={{ 
-                                    padding: '15px',
-                                    backgroundColor: 'white',
-                                    borderRadius: '6px',
-                                    border: '1px solid #bdc3c7',
-                                    display: 'grid',
-                                    gridTemplateColumns: '1fr 2fr 1fr 1fr 1fr',
-                                    gap: '15px',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>
-                                    {espacio.cod_espacio}
-                                </div>
-                                <div style={{ fontWeight: '600' }}>
-                                    {espacio.nombre}
-                                </div>
-                                <div style={{ textAlign: 'center' }}>
-                                    <span style={{ 
-                                        backgroundColor: '#3498db', 
-                                        color: 'white', 
-                                        padding: '5px 10px', 
-                                        borderRadius: '15px',
-                                        fontSize: '12px'
-                                    }}>
-                                        {espacio.nro_reservas} reservas
-                                    </span>
-                                </div>
-                                <div style={{ textAlign: 'center', fontWeight: 'bold', color: '#27ae60' }}>
-                                    ${parseFloat(espacio.total_pagos).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                                <div style={{ textAlign: 'center' }}>
-                                    <span style={{ 
-                                        backgroundColor: '#9b59b6', 
-                                        color: 'white', 
-                                        padding: '5px 10px', 
-                                        borderRadius: '15px',
-                                        fontSize: '12px'
-                                    }}>
-                                        {espacio.nro_canchas} canchas
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
